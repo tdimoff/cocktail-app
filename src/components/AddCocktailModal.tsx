@@ -1,6 +1,6 @@
-import React from 'react';
 import { Modal, Fade, Backdrop, Box } from "@mui/material";
 import AddCocktailForm from "./AddCocktailForm";
+import styles from "../styles/AddCocktailModal.module.scss";
 
 interface AddCocktailModalProps {
   isOpen: boolean;
@@ -8,31 +8,23 @@ interface AddCocktailModalProps {
   onCocktailAdded: () => void;
 }
 
-const AddCocktailModal: React.FC<AddCocktailModalProps> = ({ isOpen, onClose, onCocktailAdded }) => {
+const AddCocktailModal = ({ isOpen, onClose, onCocktailAdded }: AddCocktailModalProps) => {
   return (
     <Modal
       open={isOpen}
       onClose={onClose}
       closeAfterTransition
-      BackdropComponent={Backdrop}
-      BackdropProps={{
-        timeout: 500,
+      slots={{ backdrop: Backdrop }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            transition: 'opacity 0.5s ease-in-out',
+          },
+        },
       }}
     >
       <Fade in={isOpen}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 400,
-            bgcolor: "background.paper",
-            border: "2px solid #000",
-            boxShadow: 24,
-            p: 4,
-          }}
-        >
+        <Box className={styles['add-cocktail-modal__content']}>
           <AddCocktailForm onCocktailAdded={onCocktailAdded} />
         </Box>
       </Fade>

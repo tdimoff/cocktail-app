@@ -6,13 +6,13 @@ import {
   Typography,
   IconButton,
   Box,
-  CardActionArea,
   Rating
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { ICocktail } from "../interfaces/ICocktail.interface";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import styles from "../styles/CocktailItem.module.scss";
 
 interface ICocktailItemProps {
   cocktail: ICocktail;
@@ -34,50 +34,46 @@ const CocktailItem = ({
     }
   }, []);
 
-  const playSound = () => {
+  const handleItemClick = () => {
     if (audioRef.current) {
-      audioRef.current.currentTime = 0;
       audioRef.current.play()
         .then(() => {
-          // Navigate after the sound starts playing
-          setTimeout(() => navigate(`/cocktails/${cocktail.idDrink}`), 300);
+          setTimeout(() => navigateToCocktailDetail(), 300);
         })
+        .catch((error) => {
+          console.error("Error playing sound:", error);
+          navigateToCocktailDetail();
+        });
     } else {
-      // If audio element is not available, just navigate
-      navigate(`/cocktails/${cocktail.idDrink}`);
+      navigateToCocktailDetail();
     }
   };
 
+  const navigateToCocktailDetail = () => {
+    navigate(`/cocktails/${cocktail.idDrink}`);
+  };
+
   return (
-    <Card>
-      <Box position="relative">
-        <CardActionArea onClick={playSound}>
+    <Card className={styles["cocktail-item"]} onClick={handleItemClick}>
+      <Box className={styles["cocktail-item__relative-box"]}>
+        <Box className={styles["cocktail-item__image-container"]}>
           <CardMedia
             component="img"
-            height="140"
             image={cocktail.strDrinkThumb}
             alt={cocktail.strDrink}
+            className={styles["cocktail-item__image"]}
           />
-          <CardContent>
-            <Typography gutterBottom variant="h5" component="div">
-              {cocktail.strDrink}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Category: {cocktail.strCategory}
-            </Typography>
-            <Rating name={`rating-${cocktail.idDrink}`} value={4} readOnly />
-          </CardContent>
-        </CardActionArea>
-        <Box
-          position="absolute"
-          top={8}
-          right={8}
-          sx={{
-            zIndex: 1,
-            backgroundColor: "rgba(255, 255, 255, 0.7)",
-            borderRadius: "50%",
-          }}
-        >
+        </Box>
+        <CardContent className={styles["cocktail-item__content"]}>
+          <Typography gutterBottom variant="h5" component="div" className={styles["cocktail-item__title"]}>
+            {cocktail.strDrink}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" className={styles["cocktail-item__category"]}>
+            Category: {cocktail.strCategory}
+          </Typography>
+          <Rating name={`rating-${cocktail.idDrink}`} value={cocktail.rating || 0} readOnly className={styles["cocktail-item__rating"]} />
+        </CardContent>
+        <Box className={styles["cocktail-item__favorite-button"]}>
           <IconButton
             onClick={(e) => {
               e.preventDefault();
@@ -90,9 +86,8 @@ const CocktailItem = ({
           </IconButton>
         </Box>
       </Box>
-      <audio ref={audioRef}>
+      <audio ref={audioRef} className={styles["cocktail-item__audio"]}>
         <source src="/sounds/ice-clink.mp3" type="audio/mpeg" />
-        Your browser does not support the audio element.
       </audio>
     </Card>
   );

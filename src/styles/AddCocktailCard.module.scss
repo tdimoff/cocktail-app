@@ -1,0 +1,11 @@
+.add-cocktail-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  cursor: pointer;
+
+  &__content {
+    text-align: center;
+  }
+}

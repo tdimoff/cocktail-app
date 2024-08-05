@@ -1,0 +1,20 @@
+.add-cocktail-modal {
+  &__content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    outline: none;
+    max-width: 90%;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+
+    @media (min-width: 37.5rem) {
+      max-width: 31.25rem;
+    }
+  }
+}

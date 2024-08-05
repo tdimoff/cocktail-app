@@ -13,6 +13,7 @@ const ConnectWallet = () => {
      disconnect()
    } else {
      const connector = connectors[0]
+
      if (connector) {
        connect({ connector })
      }

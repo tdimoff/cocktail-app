@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Typography, Box } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Typography, Box, Grid } from "@mui/material";
 import CocktailList from "../components/CocktailList";
 import { ICocktail } from "../interfaces/ICocktail.interface";
 
@@ -19,7 +19,9 @@ const FavoritesPage = () => {
   };
 
   const handleToggleFavorite = (cocktail: ICocktail) => {
-    const updatedFavorites = favorites.filter(fav => fav.idDrink !== cocktail.idDrink);
+    const updatedFavorites = favorites.filter(
+      (fav) => fav.idDrink !== cocktail.idDrink
+    );
 
     setFavorites(updatedFavorites);
     localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
@@ -33,11 +35,13 @@ const FavoritesPage = () => {
       {favorites.length === 0 ? (
         <Typography>You haven't added any favorites yet.</Typography>
       ) : (
-        <CocktailList
-          cocktails={favorites}
-          handleToggleFavorite={handleToggleFavorite}
-          favorites={favorites}
-        />
+        <Grid container spacing={4}>
+          <CocktailList
+            cocktails={favorites}
+            handleToggleFavorite={handleToggleFavorite}
+            favorites={favorites}
+          />
+        </Grid>
       )}
     </Box>
   );

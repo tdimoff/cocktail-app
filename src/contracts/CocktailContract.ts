@@ -160,7 +160,7 @@ export const COCKTAIL_CONTRACT_ABI = [
   },
   {
     inputs: [],
-    name: "getCocktailCount",
+    name: "getCockltailCount",
     outputs: [
       {
         internalType: "uint256",

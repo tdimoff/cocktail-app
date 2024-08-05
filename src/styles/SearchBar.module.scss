@@ -1,0 +1,20 @@
+.search-bar {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+
+  &__form {
+    width: 100%;
+    max-width: 37.5rem;
+  }
+
+  &__select-wrapper {
+    margin-right: 0.5rem;
+
+    :global(.MuiSelect-select) {
+      padding-right: 1.5rem !important;
+    }
+  }
+}

@@ -9,24 +9,28 @@ import {
   CardMedia,
   CardContent,
   Rating,
+  Container
 } from "@mui/material";
-import { useWriteContract } from "wagmi";
+import { useReadContract } from "wagmi";
 import {
   COCKTAIL_CONTRACT_ABI,
   COCKTAIL_CONTRACT_ADDRESS,
 } from "../contracts/CocktailContract";
-import { waitForTransactionReceipt } from "@wagmi/core";
-import { config } from "../config/wagmi";
-import { useWaitForTransactionReceipt } from 'wagmi'
+import { transformBlockchainCocktail } from "../utils/cocktailTransformer";
 
 const CocktailDetailPage = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id?: string }>();
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [cocktail, setCocktail] = useState<ICocktail>();
-  const [rating, setRating] = useState<number | null>(0);
-  const { writeContract } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
+  const [cocktail, setCocktail] = useState<ICocktail | null>(null);
+
+  const isBlockchainCocktail = id?.startsWith('blockchain-');
+  const blockchainId = isBlockchainCocktail && id ? parseInt(id.split('-')[1], 10) : null;
+
+  const { data: blockchainCocktail } = useReadContract({
+    address: COCKTAIL_CONTRACT_ADDRESS,
+    abi: COCKTAIL_CONTRACT_ABI,
+    functionName: 'getCocktail',
+    args: blockchainId !== null ? [blockchainId] : undefined,
   });
 
   useEffect(() => {
@@ -34,9 +38,16 @@ const CocktailDetailPage = () => {
       if (id) {
         try {
           setIsLoading(true);
-          const data = await fetchCocktailById(id);
-          setCocktail(data);
-          setRating(data.rating || 0);
+
+          if (isBlockchainCocktail) {
+            if (blockchainCocktail) {
+              const transformedCocktail = transformBlockchainCocktail(blockchainCocktail as string[], Number(blockchainId));
+              setCocktail(transformedCocktail);
+            }
+          } else {
+            const data = await fetchCocktailById(id);
+            setCocktail(data);
+          }
         } catch (error) {
           console.error("Error fetching cocktail details:", error);
         } finally {
@@ -45,67 +56,59 @@ const CocktailDetailPage = () => {
       }
     };
     loadCocktail();
-  }, [id]);
+  }, [id, isBlockchainCocktail, blockchainCocktail, blockchainId]);
 
-  const handleRating = async (newValue: number | null) => {
-    if (newValue === null || !id) return;
+  //TODO
+  // const handleRating = async (newValue: number) => {
+  //   if (newValue === null || !id) return;
 
-    try {
-      const { hash } = await writeContract({
-        abi: COCKTAIL_CONTRACT_ABI,
-        address: COCKTAIL_CONTRACT_ADDRESS,
-        functionName: 'rateCocktail',
-        args: [BigInt(id), BigInt(newValue)],
-      });
-
-      // Wait for the transaction to be mined
-      const receipt = await waitForTransactionReceipt(config, { hash });
-
-      if (receipt.status === 'success') {
-        setRating(newValue);
-        // Optionally, update the cocktail object with the new rating
-        setCocktail(prev => prev ? {...prev, rating: newValue} : prev);
-      } else {
-        console.error("Transaction failed");
-      }
-    } catch (error) {
-      console.error("Error rating cocktail:", error);
-    }
-  };
-
+  //   try {
+  //     await writeContract({
+  //       address: COCKTAIL_CONTRACT_ADDRESS,
+  //       abi: COCKTAIL_CONTRACT_ABI,
+  //       functionName: 'rateCocktail',
+  //       args: [blockchainId !== null ? BigInt(blockchainId) : id, newValue],
+  //     });
+  //   } catch (error) {
+  //     console.error("Error rating cocktail:", error);
+  //   }
+  // };
+console.log(transformBlockchainCocktail)
   return (
-    <Box>
-      {isLoading ? (
-        <Typography>Loading...</Typography>
-      ) : cocktail ? (
-        <Card>
-          <CardMedia
-            component="img"
-            height="300"
-            image={cocktail.strImageSource}
-            alt={cocktail.strDrink}
-          />
-          <CardContent>
-            <Typography variant="h4" gutterBottom>
-              {cocktail.strDrink}
-            </Typography>
-            <Typography variant="subtitle1">
-              Category: {cocktail.strCategory}
-            </Typography>
-            <Typography variant="subtitle1">
-              Glass: {cocktail.strGlass}
-            </Typography>
-            <Rating
-              name={`rating-${cocktail.idDrink}`}
-              value={rating}
-              onChange={(event, newValue) => handleRating(newValue)}
+    <Container maxWidth="sm">
+      <Box>
+        {isLoading ? (
+          <Typography>Loading...</Typography>
+        ) : cocktail ? (
+          <Card>
+            <CardMedia
+              component="img"
+              height="300"
+              image={cocktail.strDrinkThumb}
+              alt={cocktail.strDrink}
             />
-          </CardContent>
-        </Card>
-      ) : (
-        <Typography>Cocktail not found</Typography>
-      )}
-    </Box>
+            <CardContent>
+              <Typography variant="h4" gutterBottom>
+                {cocktail.strDrink}
+              </Typography>
+              <Typography variant="subtitle1">
+                Category: {cocktail.strCategory}
+              </Typography>
+              <Typography variant="subtitle1">
+                Glass: {cocktail.strGlass}
+              </Typography>
+              <Rating
+                name={`rating-${cocktail.idDrink}`}
+                value={isBlockchainCocktail ? Number(cocktail.rating) : 0}
+                // onChange={handleRating}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <Typography>Cocktail not found</Typography>
+        )}
+      </Box>
+    </Container>
   );
 };
 

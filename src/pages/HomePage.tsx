@@ -1,25 +1,25 @@
-import { useEffect, useState } from "react";
-import {
-  Typography,
-  Box,
-  Button,
-  Chip,
-  Grid,
-} from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+import { Typography, Box, Chip, Grid } from "@mui/material";
 import CocktailList from "../components/CocktailList";
 import SearchBar from "../components/SearchBar";
 import { ICocktail } from "../interfaces/ICocktail.interface";
 import {
   fetchCocktails,
   searchCocktails,
-  fetchRandomCocktail,
   fetchCategories,
   fetchCocktailsByCategory,
 } from "../services/api";
 import { useAccount, useReadContract } from "wagmi";
-import { useFetchCocktailsFromContract } from "../services/api";
 import AddCocktailModal from "../components/AddCocktailModal";
-import { useCocktailContract } from "../config/wagmi";
+import {
+  COCKTAIL_CONTRACT_ABI,
+  COCKTAIL_CONTRACT_ADDRESS,
+} from "../contracts/CocktailContract";
+import styles from "../styles/HomePage.module.scss";
+import { transformBlockchainCocktail } from "../utils/cocktailTransformer";
+import AddCocktailCard from "../components/AddCocktailCard";
+import { useCocktailContract } from "../hooks/useCocktailContract";
+import { blockchainCocktailFetchCount } from "../config/config";
 
 const HomePage = () => {
   const [cocktails, setCocktails] = useState<ICocktail[]>([]);
@@ -27,35 +27,47 @@ const HomePage = () => {
   const [favorites, setFavorites] = useState<ICocktail[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [showAddForm, setShowAddForm] = useState(false);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const { isConnected } = useAccount();
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
-  const { chain } = useAccount()
-  const cocktailContract = useCocktailContract();
+  const [currentSearchType, setCurrentSearchType] = useState<"name" | "ingredient">("name");
 
-  console.log(cocktailContract)
-
-  const { data: cocktailCount, isPending: isCocktailCountLoading } = useReadContract({
-    ...cocktailContract,
-    functionName: 'getCocktailCount',
+  const { data: cocktailCount } = useReadContract({
+    address: COCKTAIL_CONTRACT_ADDRESS,
+    abi: COCKTAIL_CONTRACT_ABI,
+    functionName: "getCockltailCount",
   });
 
-  console.log(cocktailCount)
+  const {
+    data: blockchainCocktailsResults,
+    isPending: isBlockchainCocktailLoading,
+  } = useCocktailContract(blockchainCocktailFetchCount);
 
-  useEffect(() => {
-    fetchAllCocktails();
-    loadFavorites();
-    loadCategories();
+  const fetchBlockchainCocktails = useCallback(() => {
+    if (blockchainCocktailsResults && isConnected) {
+      const transformedCocktails = blockchainCocktailsResults
+        .filter(
+          (result): result is { status: "success"; result: string[] } =>
+            result.status === "success" && Array.isArray(result.result)
+        )
+        .map((result, index) =>
+          transformBlockchainCocktail(result.result, index)
+        );
+      setCocktails(transformedCocktails);
+    }
   }, []);
+
+  console.log(blockchainCocktailsResults);
 
   useEffect(() => {
     if (isConnected) {
-      useFetchCocktailsFromContract;
+      fetchBlockchainCocktails();
     } else {
       fetchAllCocktails();
     }
-  }, [isConnected]);
+    loadFavorites();
+    loadCategories();
+  }, [isConnected, blockchainCocktailsResults, fetchBlockchainCocktails]);
 
   const loadCategories = async () => {
     try {
@@ -70,9 +82,14 @@ const HomePage = () => {
     setIsLoading(true);
     setCurrentSearchTerm("");
     setSelectedCategory("");
+
     try {
       const data = await fetchCocktails();
-      setCocktails(data);
+      const cocktailsWithDefaultRating = data.map((cocktail) => ({
+        ...cocktail,
+        rating: 0,
+      }));
+      setCocktails(cocktailsWithDefaultRating);
     } catch (err) {
       console.error("Error fetching cocktails:", err);
     } finally {
@@ -80,42 +97,33 @@ const HomePage = () => {
     }
   };
 
-  const handleSearch = async (searchTerm: string) => {
+  const handleSearch = async (
+    searchTerm: string,
+    searchType: "name" | "ingredient"
+  ) => {
     setIsLoading(true);
     setCurrentSearchTerm(searchTerm);
+    setCurrentSearchType(searchType);
 
     try {
-      let data;
+      const data = await searchCocktails(searchTerm, searchType);
+      const cocktailsWithDefaultRating = data.map((cocktail) => ({
+        ...cocktail,
+        rating: 0,
+      }));
+
       if (selectedCategory) {
-        // If a category is selected, first get all cocktails in that category
-        const categoryData = await fetchCocktailsByCategory(selectedCategory);
-        // Then filter these results based on the search term
-        data = categoryData.drinks.filter((cocktail: ICocktail) =>
-          cocktail.strDrink.toLowerCase().includes(searchTerm.toLowerCase())
+        const filteredData = cocktailsWithDefaultRating.filter(
+          (cocktail: ICocktail) =>
+            cocktail.strCategory?.toLowerCase() ===
+            selectedCategory.toLowerCase()
         );
+        setCocktails(filteredData);
       } else {
-        // If no category is selected, search all cocktails
-        data = await searchCocktails(searchTerm);
+        setCocktails(cocktailsWithDefaultRating);
       }
-      setCocktails(data);
     } catch (err) {
       console.error("Error searching cocktails:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGetRandomCocktail = async () => {
-    setIsLoading(true);
-    setCurrentSearchTerm("");
-    setSelectedCategory("");
-
-    try {
-      const randomCocktail = await fetchRandomCocktail();
-
-      setCocktails([randomCocktail]);
-    } catch (err) {
-      console.error("Error fetching random cocktail:", err);
     } finally {
       setIsLoading(false);
     }
@@ -128,9 +136,9 @@ const HomePage = () => {
     }
   };
 
+  //TODO
   const handleCocktailAdded = () => {
-    setShowAddForm(false);
-    fetchAllCocktails(); // Refresh the cocktail list
+    // Implement logic for when a cocktail is added
   };
 
   const handleToggleFavorite = (cocktail: ICocktail) => {
@@ -144,11 +152,10 @@ const HomePage = () => {
     localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
   };
 
-  const handleCategoryClick = (category: string) => {
+  const handleCategoryClick = async (category: string) => {
     setIsLoading(true);
 
     let newSelectedCategory = category;
-    let filteredCocktails;
 
     if (selectedCategory === category) {
       newSelectedCategory = "";
@@ -157,78 +164,54 @@ const HomePage = () => {
     setSelectedCategory(newSelectedCategory);
 
     try {
+      let filteredCocktails;
+
       if (newSelectedCategory) {
-        // Filter the current cocktails list based on the selected category
-        filteredCocktails = cocktails.filter(
-          (cocktail: ICocktail) =>
-            cocktail.strCategory.toLowerCase() ===
-            newSelectedCategory.toLowerCase()
-        );
+        const { drinks } = await fetchCocktailsByCategory(newSelectedCategory);
+        filteredCocktails = drinks;
       } else {
-        // If no category is selected (or category was deselected), show all cocktails
         if (currentSearchTerm) {
-          // If there's a current search term, we need to re-fetch the search results
-          searchCocktails(currentSearchTerm)
-            .then((data) => {
-              setCocktails(data);
-              setIsLoading(false);
-            })
-            .catch((err) => {
-              console.error("Error searching cocktails:", err);
-              setIsLoading(false);
-            });
-          return; // Exit the function here as we're handling the state update in the promise
+          filteredCocktails = await searchCocktails(
+            currentSearchTerm,
+            currentSearchType
+          );
         } else {
-          // If no search term, revert to all cocktails
-          fetchCocktails()
-            .then((data) => {
-              setCocktails(data);
-              setIsLoading(false);
-            })
-            .catch((err) => {
-              console.error("Error fetching all cocktails:", err);
-              setIsLoading(false);
-            });
-          return;
+          filteredCocktails = await fetchCocktails();
         }
+      }
+
+      const cocktailsWithDefaultRating = filteredCocktails.map((cocktail) => ({
+        ...cocktail,
+        rating: 0,
+      }));
+
+      if (currentSearchTerm && newSelectedCategory) {
+        filteredCocktails = cocktailsWithDefaultRating.filter(
+          (cocktail: ICocktail) =>
+            cocktail.strDrink
+              .toLowerCase()
+              .includes(currentSearchTerm.toLowerCase())
+        );
       }
 
       setCocktails(filteredCocktails);
     } catch (err) {
-      console.error("Error filtering cocktails by category:", err);
+      console.error("Error filtering cocktails:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleAddCocktail = () => {
+    setIsAddFormOpen(true);
+  };
+
   return (
-    <Box mt={2}>
-      {chain && <Typography>{chain.name}</Typography>}
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={8}>
-          <SearchBar onSearch={handleSearch} />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleGetRandomCocktail}
-            fullWidth
-          >
-            Get Random Cocktail
-          </Button>
-        </Grid>
-      </Grid>
-      <Box mt={2}>
-        {isCocktailCountLoading ? (
-          <Typography>Loading cocktail count...</Typography>
-        ) : (
-          <Typography>
-            Total cocktails in smart contract: {cocktailCount?.toString()}
-          </Typography>
-        )}
+    <Box mt={2} className={styles["home-page"]}>
+      <Box className={styles["home-page__search-bar"]}>
+        <SearchBar onSearch={handleSearch} />
       </Box>
-      <Box mt={2} mb={2}>
+      <Box className={styles["home-page__categories"]}>
         <Grid container spacing={1}>
           {categories.map((category) => (
             <Grid item key={category}>
@@ -237,47 +220,44 @@ const HomePage = () => {
                 onClick={() => handleCategoryClick(category)}
                 color={selectedCategory === category ? "primary" : "default"}
                 variant={selectedCategory === category ? "filled" : "outlined"}
-                style={{ borderRadius: "20px" }}
+                className={styles["home-page__category-chip"]}
               />
             </Grid>
           ))}
         </Grid>
       </Box>
-      {isConnected && (
-        <>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => setIsAddFormOpen(true)}
-            style={{
-              marginTop: "10px",
-              marginBottom: "10px",
-              marginRight: "10px",
-            }}
-          >
-            Add New Cocktail
-          </Button>
-          <AddCocktailModal
-            isOpen={isAddFormOpen}
-            onClose={() => setIsAddFormOpen(false)}
-            onCocktailAdded={handleCocktailAdded}
-          />
-        </>
-      )}
-      {isLoading ? (
+      <AddCocktailModal
+        isOpen={isAddFormOpen}
+        onClose={() => setIsAddFormOpen(false)}
+        onCocktailAdded={handleCocktailAdded}
+      />
+      {isLoading || isBlockchainCocktailLoading ? (
         <Typography>Loading...</Typography>
       ) : (
         <>
           <Typography variant="h5" gutterBottom>
             {selectedCategory
               ? `${selectedCategory} Cocktails`
+              : isConnected
+              ? `All Cocktails (${
+                  cocktailCount ? cocktailCount.toString() : "?"
+                })`
               : "All Cocktails"}
           </Typography>
-          <CocktailList
-            cocktails={cocktails}
-            handleToggleFavorite={handleToggleFavorite}
-            favorites={favorites}
-          />
+          <div className={styles["home-page__cocktail-list"]}>
+            <Grid container spacing={4}>
+              {isConnected && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <AddCocktailCard onClick={handleAddCocktail} />
+                </Grid>
+              )}
+              <CocktailList
+                cocktails={cocktails}
+                handleToggleFavorite={handleToggleFavorite}
+                favorites={favorites}
+              />
+            </Grid>
+          </div>
         </>
       )}
     </Box>

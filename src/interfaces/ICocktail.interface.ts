@@ -17,4 +17,5 @@ export interface ICocktail {
   strMeasure3: string | null;
   strMeasure4: string | null;
   strMeasure5: string | null;
+  rating?: number;
 }

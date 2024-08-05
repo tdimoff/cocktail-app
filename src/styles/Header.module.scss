@@ -1,0 +1,25 @@
+.header {
+  &__toolbar {
+    justify-content: space-between;
+  }
+
+  &__drawer-list {
+    width: 15.625rem;
+  }
+
+  &__desktop-menu {
+    display: none;
+
+    @media (min-width: 60rem) {
+      display: flex;
+    }
+  }
+
+  &__mobile-menu {
+    display: flex;
+
+    @media (min-width: 60rem) {
+      display: none;
+    }
+  }
+}

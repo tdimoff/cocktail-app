@@ -1,6 +1,6 @@
 import { Grid } from "@mui/material";
 import CocktailItem from "./CocktailItem";
-import { ICocktail } from "../interfaces/ICocktail.interface"
+import { ICocktail } from "../interfaces/ICocktail.interface";
 
 interface ICocktailListProps {
   cocktails: ICocktail[];
@@ -13,17 +13,17 @@ const CocktailList = ({
   handleToggleFavorite,
   favorites,
 }: ICocktailListProps) => (
-  <Grid container spacing={4}>
+  <>
     {cocktails.map((cocktail: ICocktail) => (
       <Grid item key={cocktail.idDrink} xs={12} sm={6} md={4}>
         <CocktailItem
           cocktail={cocktail}
           onToggleFavorite={() => handleToggleFavorite(cocktail)}
-          isFavorite={favorites.some(fav => fav.idDrink === cocktail.idDrink)}
+          isFavorite={favorites.some((fav) => fav.idDrink === cocktail.idDrink)}
         />
       </Grid>
     ))}
-  </Grid>
+  </>
 );
 
 export default CocktailList;
